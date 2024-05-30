@@ -9,12 +9,18 @@ args = parser.parse_args()
 
 # Load the .nc file into an xarray Dataset
 ds = xr.open_dataset(args.file)
+print("=== dataset ===")
 print(ds)
+print("=== dataset as dict ===")
+table_dict = ds.to_dict()
+print(table_dict)
 
+print("=== dimensions ===")
 # Access the dimensions
 for dim in ds.dims:
     print(f"Dimension: {dim}, Size: {ds.dims[dim]}")
 
+print("=== Columns ===")
 # Access the variables and their metadata
 for var in ds.variables:
     print(f"\nVariable: {var}")
@@ -37,10 +43,12 @@ def query_dataset(question):
     
     return result["answer"]
 
-# Example usage
-question = "What is the average temperature in the dataset?"
-answer = query_dataset(question)
 
-print(f"question: {question}")
-print(f"answer: {answer}")
+
+# # Example usage
+# question = "What is the average temperature in the dataset?"
+# answer = query_dataset(question)
+
+# print(f"question: {question}")
+# print(f"answer: {answer}")
 

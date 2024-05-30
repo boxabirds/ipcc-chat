@@ -11,6 +11,9 @@ python = "^3.12"
 "transformers" =  "*"
 "xarray" =  {extras = ["io"], version = "^2024.5.0"}
 torch = "^2.3.0"
+pandas = "^2.2.2"
+matplotlib = "^3.9.0"
+tables = "^3.9.2"
 
 
 [build-system]
