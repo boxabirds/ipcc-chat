@@ -83,6 +83,29 @@ merge_metrics("2.0")
 merge_metrics("3.0")
 merge_metrics("4.0")
 
+def load_and_label_data(temp_value):
+    # Load the data from the HDF5 file
+    hdf5_filename = f'SYR_Figure_SPM2_at_{temp_value}C.h5'
+    df = pd.read_hdf(hdf5_filename, 'data')
+    
+    # Add a new column for the temperature value
+    df['Temperature'] = temp_value
+    return df
+
+# Load and label data for each temperature
+df_1_5 = load_and_label_data("1.5")
+df_2_0 = load_and_label_data("2.0")
+df_3_0 = load_and_label_data("3.0")
+df_4_0 = load_and_label_data("4.0")
+
+# Concatenate all DataFrames into a single DataFrame
+final_df = pd.concat([df_1_5, df_2_0, df_3_0, df_4_0])
+
+# Save the final merged DataFrame to an HDF5 file
+final_hdf5_filename = 'SYR_Figure_SPM2.h5'
+final_df.to_hdf(final_hdf5_filename, key='data', mode='w')
+
+print(f"Final merged table has been saved to '{final_hdf5_filename}'.")
 
 # merged_df = pd.merge(df_temp, df_soil_temp, on=['Longitude', 'Latitude'], how='outer')
 # merged_df = pd.merge(merged_df, df_precip, on=['Longitude', 'Latitude'], how='outer')
