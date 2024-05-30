@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tapas-poc"
+version = "0.1.0"
+description = "Experiments using the natural language tool for accessing structureed content"
+authors = ["Julian Harris <julian.harris@gmail.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+"transformers" =  "*"
+"xarray" =  {extras = ["io"], version = "^2024.5.0"}
+torch = "^2.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
