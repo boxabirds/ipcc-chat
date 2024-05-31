@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "langchain-dataframe-agent"
+version = "0.1.0"
+description = "Simple POC that demonstrates the natural language capabilities of the Langchain \"dataframe agent\"."
+authors = ["Julian Harris <julian.harris@gmail.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+packages = [
+    { include = "agent.py" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.2.2"
+langchain = "^0.2.1"
+h5py = "^3.11.0"
+langchain-openai = "^0.1.8"
+langchain-community = "^0.2.1"
+langchain-experimental = "^0.0.59"
+tables = "^3.9.2"
+geopy = "^2.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
