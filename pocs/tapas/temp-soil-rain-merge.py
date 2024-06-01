@@ -26,7 +26,12 @@ def reverse_geocode(lat, lon, conn: sqlite3.Connection):
     # we record when there is no address to avoid looking it up repeatedly
     # and there are a lot of them because bunches of addresses are in the ocean
     if result:
-        return result[0] if result[0] != "N/A" else None
+        if result[0] == "N/A":
+            print(f"({lat}, {lon}) N/A cached value found, so returning N/A")
+            return None
+        else:
+            print(f"({lat}, {lon}) found in cache: {result[0]}")
+            return result[0]
     
     # we have a new address that's not in the cache
     # so look it up and cache it -- even if the is no location found we cache that too 
@@ -40,6 +45,7 @@ def reverse_geocode(lat, lon, conn: sqlite3.Connection):
         if address != "N/A":
             print(f"Geocoded: {address}")
         else:
+            print(f"({lat}, {lon}) not found so returning N/A")
             return address
 
 def load_lat_lon_data(filename, variable_name, alias):
@@ -63,7 +69,7 @@ def load_lat_lon_data(filename, variable_name, alias):
     ds.close()
     return df
 
-def merge_metrics(temp_value, c:sqlite3.Cursor, conn:sqlite3.Connection):
+def merge_metrics(temp_value, conn:sqlite3.Connection):
     # Format filenames based on the temperature value
     temp_filename = f'SYR_Figure_SPM.2a_cmip6_TXx_change_at_{temp_value}C.nc'
     soil_temp_filename = f'SYR_Figure_SPM.2b_cmip6_SM_tot_change_at_{temp_value}C.nc'
@@ -86,29 +92,19 @@ def merge_metrics(temp_value, c:sqlite3.Cursor, conn:sqlite3.Connection):
     # Check that every lat/lon entry has TXx and Rx1day values
     assert merged_df['Average hottest day temperature change'].notna().all() and merged_df['Annual wettest-day precipitation change'].notna().all(), "Some entries are missing TXx or Rx1day values."
 
-    ## now add address to every entry in merged_df by calling reverse_geocode
+    # Add address to every entry in merged_df by calling reverse_geocode
     merged_df['Address'] = merged_df.apply(
         lambda row: reverse_geocode(
             row['Latitude'], 
             row['Longitude'], 
-            c, conn), 
+            conn), 
         axis=1
     )
 
-    # Save the merged DataFrame to an HDF5 file
-    hdf5_filename = f'SYR_Figure_SPM2_at_{temp_value}C.h5'
-    merged_df.to_hdf(hdf5_filename, key='data', mode='w')
+    # Add a new column for the temperature value as a float
+    merged_df['Average Global Temperature Increase'] = float(temp_value)
 
-    print(f"Merged table has been saved to '{hdf5_filename}'.")
-
-def load_and_label_data(temp_value):
-    # Load the data from the HDF5 file
-    hdf5_filename = f'SYR_Figure_SPM2_at_{temp_value}C.h5'
-    df = pd.read_hdf(hdf5_filename, 'data')
-    
-    # Add a new column for the temperature value
-    df['Average Global Temperature Increase'] = temp_value
-    return df
+    return merged_df
 
 
 geolocator = Nominatim(user_agent="ipcc chatbot data processor julian.harris@gmail.com")
@@ -116,28 +112,40 @@ conn = connect_to_geocache()
 
 # temp, soil, and precip data are in separate tables. 
 # merge them for each global average temperature model
-merge_metrics("1.5", c, conn)
-merge_metrics("2.0", c, conn)
-merge_metrics("3.0", c, conn)
-merge_metrics("4.0", c, conn)
-
-# Load and label data for each temperature
-df_1_5 = load_and_label_data("1.5")
-df_2_0 = load_and_label_data("2.0")
-df_3_0 = load_and_label_data("3.0")
-df_4_0 = load_and_label_data("4.0")
+df_1_5 = merge_metrics("1.5", conn)
+df_2_0 = merge_metrics("2.0", conn)
+df_3_0 = merge_metrics("3.0", conn)
+df_4_0 = merge_metrics("4.0", conn)
 
 # Concatenate all DataFrames into a single DataFrame
 final_df = pd.concat([df_1_5, df_2_0, df_3_0, df_4_0])
 
-# Save the final merged DataFrame to an HDF5 file
-final_hdf5_filename = 'SYR_Figure_SPM2.h5'
-final_df.to_hdf(final_hdf5_filename, key='data', mode='w')
+# Save the final merged DataFrame to a SQLite database
+sqlite_filename = 'SYR_Figure_SPM2.db'
+conn_sqlite = sqlite3.connect(sqlite_filename)
 
-print(f"Final merged table has been saved to '{final_hdf5_filename}'.")
+# Create the table if it doesn't exist
+conn_sqlite.execute('''
+    CREATE TABLE IF NOT EXISTS model (
+        Longitude REAL,
+        Latitude REAL,
+        "Average hottest day temperature change" REAL,
+        "Annual wettest-day precipitation change" REAL,
+        "Annual mean total column soil moisture change" REAL,
+        Address TEXT,
+        "Average Global Temperature Increase" REAL
+    )
+''')
 
-# confirm it worked
-final_df = pd.read_hdf(final_hdf5_filename, 'data')
+final_df.to_sql('model', conn_sqlite, if_exists='append', index=False)
+conn_sqlite.close()
+
+print(f"Final merged table has been saved to '{sqlite_filename}'.")
+
+# Confirm it worked
+conn_sqlite = sqlite3.connect(sqlite_filename)
+final_df = pd.read_sql_query("SELECT * FROM model", conn_sqlite)
+conn_sqlite.close()
 
 # Print the number of rows in the DataFrame
 print(f"Number of rows in the DataFrame: {len(final_df)}")
@@ -151,7 +159,6 @@ print("First 5 rows of the DataFrame:")
 print(final_df.head())
 
 conn.close()
-
 # merged_df = pd.merge(df_temp, df_soil_temp, on=['Longitude', 'Latitude'], how='outer')
 # merged_df = pd.merge(merged_df, df_precip, on=['Longitude', 'Latitude'], how='outer')
 
